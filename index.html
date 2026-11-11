@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>금속 막대의 열팽창 시뮬레이션</title>
+<style>
+  :root { font-family: "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; color:#202938; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f3f6fa; padding:24px 14px; }
+  main { max-width:900px; margin:auto; background:white; border-radius:18px; padding:24px; box-shadow:0 8px 28px #1b355015; }
+  h1 { font-size:clamp(22px,4vw,30px); margin:0 0 8px; }
+  .sub { color:#637083; margin:0 0 22px; line-height:1.6; }
+  .controls { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .control { background:#f5f7fa; border-radius:14px; padding:16px; }
+  .control label { display:flex; justify-content:space-between; gap:12px; font-weight:700; margin-bottom:10px; }
+  output { color:#176b9b; font-variant-numeric:tabular-nums; }
+  input[type=range] { width:100%; accent-color:#237eae; cursor:pointer; }
+  .ends { display:flex; justify-content:space-between; color:#788395; font-size:12px; }
+  .legend { display:flex; flex-wrap:wrap; gap:16px; color:#596579; font-size:13px; margin:8px 0 18px; }
+  .swatch { display:inline-block; width:13px; height:13px; border-radius:3px; vertical-align:-2px; margin-right:5px; }
+  .bar-card { border:1px solid #e4e9ef; border-radius:14px; padding:16px; margin:12px 0; }
+  .bar-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .bar-head strong { font-size:17px; }
+  .delta { color:#18764e; font-weight:700; font-variant-numeric:tabular-nums; }
+  .track { position:relative; height:58px; background:repeating-linear-gradient(90deg,#f7f9fb 0,#f7f9fb calc(10% - 1px),#dfe5ec calc(10% - 1px),#dfe5ec 10%); border-radius:9px; overflow:visible; }
+  .bar { position:absolute; left:0; height:17px; border-radius:5px; transition:width .18s ease; }
+  .before { top:8px; background:#aab3bf; }
+  .after { top:33px; background:#df8b45; }
+  .bar-label { position:absolute; left:8px; top:8px; font-size:11px; line-height:17px; color:#263241; font-weight:700; pointer-events:none; }
+  .axis { display:flex; justify-content:space-between; color:#7a8492; font-size:11px; margin-top:5px; }
+  .result { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; }
+  .result div { background:#eef5f9; border-radius:12px; padding:14px; }
+  .result small { display:block; color:#647386; margin-bottom:5px; }
+  .result b { font-size:22px; font-variant-numeric:tabular-nums; }
+  .note { background:#fff8e9; border-left:4px solid #e6ae48; padding:13px 15px; border-radius:8px; margin-top:18px; line-height:1.65; font-size:14px; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:18px; }
+  button { border:0; border-radius:9px; padding:10px 15px; background:#e9eef4; color:#263241; font-weight:700; cursor:pointer; }
+  button.primary { background:#176b9b; color:white; }
+  button:hover { filter:brightness(.97); }
+  footer { color:#7a8492; font-size:12px; margin-top:18px; }
+  @media(max-width:620px){ main{padding:18px 14px}.controls{grid-template-columns:1fr}.result{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+  <h1>금속 막대의 열팽창 시뮬레이션</h1>
+  <p class="sub">같은 재료로 만든 막대를 같은 온도만큼 가열할 때, 처음 길이에 따라 늘어나는 길이가 어떻게 달라지는지 비교해 보세요.</p>
+
+  <section class="controls">
+    <div class="control">
+      <label for="temp">온도 변화 <output id="tempOut">100℃</output></label>
+      <input id="temp" type="range" min="0" max="200" step="10" value="100">
+      <div class="ends"><span>0℃</span><span>200℃</span></div>
+    </div>
+    <div class="control">
+      <label for="coef">선팽창 계수(모형) <output id="coefOut">보통</output></label>
+      <input id="coef" type="range" min="0.5" max="2" step="0.5" value="1">
+      <div class="ends"><span>작게</span><span>크게</span></div>
+    </div>
+  </section>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:#aab3bf"></i>가열 전</span>
+    <span><i class="swatch" style="background:#df8b45"></i>가열 후</span>
+    <span>※ 길이 변화는 눈에 잘 보이도록 확대해 표시</span>
+  </div>
+
+  <section class="bar-card">
+    <div class="bar-head"><strong>처음 길이 1m인 막대</strong><span class="delta" id="delta1">+1.00mm 증가</span></div>
+    <div class="track">
+      <div class="bar before" id="before1"></div>
+      <div class="bar after" id="after1"></div>
+    </div>
+    <div class="axis"><span>0</span><span>막대 길이 비교용 눈금</span><span>→</span></div>
+  </section>
+
+  <section class="bar-card">
+    <div class="bar-head"><strong>처음 길이 2m인 막대</strong><span class="delta" id="delta2">+2.00mm 증가</span></div>
+    <div class="track">
+      <div class="bar before" id="before2"></div>
+      <div class="bar after" id="after2"></div>
+    </div>
+    <div class="axis"><span>0</span><span>막대 길이 비교용 눈금</span><span>→</span></div>
+  </section>
+
+  <section class="result">
+    <div><small>1m 막대의 길이 증가</small><b id="result1">1.00mm</b></div>
+    <div><small>2m 막대의 길이 증가</small><b id="result2">2.00mm</b></div>
+  </section>
+
+  <div class="note">
+    <b>관찰 포인트</b><br>
+    온도 변화와 재료를 같게 유지하고 처음 길이만 1m에서 2m로 바꾸어 보세요.
+    처음 길이가 2배이면 늘어난 길이도 2배가 됩니다.
+    실제 금속 막대의 길이 변화는 매우 작으므로, 그림에서는 차이를 알아보기 쉽도록 확대해서 보여 줍니다.
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="reset">처음 조건으로</button>
+    <button id="temp100">온도 변화 100℃</button>
+    <button id="temp200">온도 변화 200℃</button>
+  </div>
+  <footer>교육용 개념 모형입니다. 선팽창 계수는 실제 금속의 특정 물성값이 아닌 비교를 위한 임의의 값입니다.</footer>
+</main>
+<script>
+(() => {
+  const temp = document.getElementById('temp');
+  const coef = document.getElementById('coef');
+  const names = {'0.5':'작게','1':'보통','1.5':'크게','2':'크게'};
+  // 설명용 계수: 1m 막대가 ΔT=100℃일 때 1mm 늘어나는 기준값
+  function update() {
+    const t = Number(temp.value), c = Number(coef.value);
+    const d1 = t / 100 * c;       // mm
+    const d2 = 2 * d1;            // mm
+    document.getElementById('tempOut').textContent = t + '℃';
+    document.getElementById('coefOut').textContent = c === 0.5 ? '작게' : c === 1 ? '보통' : c === 1.5 ? '크게(중간)' : '크게';
+    document.getElementById('delta1').textContent = '+' + d1.toFixed(2) + 'mm 증가';
+    document.getElementById('delta2').textContent = '+' + d2.toFixed(2) + 'mm 증가';
+    document.getElementById('result1').textContent = d1.toFixed(2) + 'mm';
+    document.getElementById('result2').textContent = d2.toFixed(2) + 'mm';
+
+    // 길이는 1m : 2m 비율로 표시하고, 열팽창량은 교육용으로 1m 기준 최대 10%까지 확대
+    const scale = 0.10 / 2; // 1m 기준 ΔT=200, 계수=2일 때 최대 10% 증가
+    const p1 = 38, p2 = 76;
+    const w1 = p1 * (1 + d1 * scale);
+    const w2 = p2 * (1 + d2 * scale);
+    document.getElementById('before1').style.width = p1 + '%';
+    document.getElementById('after1').style.width = w1 + '%';
+    document.getElementById('before2').style.width = p2 + '%';
+    document.getElementById('after2').style.width = w2 + '%';
+  }
+  temp.addEventListener('input', update);
+  coef.addEventListener('input', update);
+  document.getElementById('reset').addEventListener('click', () => { temp.value = 100; coef.value = 1; update(); });
+  document.getElementById('temp100').addEventListener('click', () => { temp.value = 100; update(); });
+  document.getElementById('temp200').addEventListener('click', () => { temp.value = 200; update(); });
+  update();
+})();
+</script>
+</body>
+</html>
